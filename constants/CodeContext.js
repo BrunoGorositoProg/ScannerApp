@@ -1,25 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-interface CodesContextType {
-  codes: string[];
-  loading: boolean;
-  addCode: (code: string) => Promise<void>;
-  deleteCode: (index: number) => Promise<void>;
-  clearAll: () => Promise<void>;
-  refreshCodes: () => Promise<void>;
-}
+const CodesContext = createContext(undefined);
 
-const CodesContext = createContext<CodesContextType | undefined>(undefined);
-
-export function CodesProvider({ children }: { children: React.ReactNode }) {
-  const [codes, setCodes] = useState<string[]>([]);
+export function CodesProvider({ children }) {
+  const [codes, setCodes] = useState([]);
+  const [descriptions, setDescriptions] = useState({}); // { code: "description" }
   const [loading, setLoading] = useState(true);
+  const [dbLoaded, setDbLoaded] = useState(false);
 
   useEffect(() => {
     loadCodes();
+    loadDatabase();
   }, []);
 
+  // Carga códigos escaneados
   const loadCodes = async () => {
     try {
       const saved = await AsyncStorage.getItem('remedy_codes');
@@ -36,9 +31,42 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCode = async (code: string) => {
+  // Carga base de datos de descripciones desde .zip
+  const loadDatabase = async () => {
     try {
-      // Validar que no sea vacío o espacios en blanco
+      const saved = await AsyncStorage.getItem('remedy_database');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setDescriptions(parsed);
+        console.log('✓ Base de datos cargada:', Object.keys(parsed).length, 'registros');
+        setDbLoaded(true);
+      }
+    } catch (error) {
+      console.error('Error loading database:', error);
+      setDbLoaded(false);
+    }
+  };
+
+  // Guardar base de datos (desde .zip parseado)
+  const saveDatabase = async (dbObject) => {
+    try {
+      await AsyncStorage.setItem('remedy_database', JSON.stringify(dbObject));
+      setDescriptions(dbObject);
+      setDbLoaded(true);
+      console.log('✓ Base de datos guardada:', Object.keys(dbObject).length, 'registros');
+    } catch (error) {
+      console.error('Error saving database:', error);
+    }
+  };
+
+  // Obtener descripción de un código
+  const getDescription = (code) => {
+    return descriptions[code] || 'Sin descripción';
+  };
+
+  // Agregar código escaneado
+  const addCode = async (code) => {
+    try {
       if (!code || code.trim() === '') {
         console.log('⚠️ Código vacío, ignorado');
         return;
@@ -46,7 +74,6 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
 
       const trimmedCode = code.trim();
 
-      // Evitar duplicados
       if (codes.includes(trimmedCode)) {
         console.log('⚠️ Código duplicado, ignorado:', trimmedCode);
         return;
@@ -56,13 +83,13 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
       setCodes(newCodes);
       await AsyncStorage.setItem('remedy_codes', JSON.stringify(newCodes));
       console.log('✓ Código guardado:', trimmedCode);
-      console.log('📊 Total de códigos:', newCodes.length);
     } catch (error) {
       console.error('❌ Error adding code:', error);
     }
   };
 
-  const deleteCode = async (index: number) => {
+  // Eliminar código
+  const deleteCode = async (index) => {
     try {
       if (index < 0 || index >= codes.length) {
         console.error('❌ Índice inválido:', index);
@@ -74,12 +101,12 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
       setCodes(newCodes);
       await AsyncStorage.setItem('remedy_codes', JSON.stringify(newCodes));
       console.log('🗑️ Código eliminado:', deletedCode);
-      console.log('📊 Total de códigos:', newCodes.length);
     } catch (error) {
       console.error('❌ Error deleting code:', error);
     }
   };
 
+  // Borrar todo
   const clearAll = async () => {
     try {
       setCodes([]);
@@ -90,6 +117,7 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Refrescar códigos
   const refreshCodes = async () => {
     try {
       await loadCodes();
@@ -100,7 +128,21 @@ export function CodesProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CodesContext.Provider value={{ codes, loading, addCode, deleteCode, clearAll, refreshCodes }}>
+    <CodesContext.Provider
+      value={{
+        codes,
+        loading,
+        descriptions,
+        dbLoaded,
+        addCode,
+        deleteCode,
+        clearAll,
+        refreshCodes,
+        getDescription,
+        saveDatabase,
+        loadDatabase,
+      }}
+    >
       {children}
     </CodesContext.Provider>
   );

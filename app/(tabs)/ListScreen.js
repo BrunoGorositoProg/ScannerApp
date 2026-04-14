@@ -1,14 +1,13 @@
-import { useCodes } from '@/constants/CodeContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CodesList from '../../components/codelist';
+import CodesList from '../../components/Codelist';
+import { useCodes } from '../../constants/CodeContext';
 
 export default function ListScreen() {
-  const { codes, loading, deleteCode, clearAll, refreshCodes } = useCodes();
+  const { codes, loading, deleteCode, clearAll, refreshCodes, getDescription } = useCodes();
 
-  // Actualiza cada vez que entra a la pantalla
   useFocusEffect(
     useCallback(() => {
       refreshCodes();
@@ -30,12 +29,16 @@ export default function ListScreen() {
           <Text style={{ padding: 12, fontSize: 14, color: '#666' }}>
             Total: {codes.length} código(s)
           </Text>
-          <CodesList codes={codes} onDelete={deleteCode} />
+          <CodesList
+            codes={codes}
+            onDelete={deleteCode}
+            getDescription={getDescription}
+          />
           <View style={styles.buttonContainer}>
-            <Button 
-              title={`Borrar todo (${codes.length})`} 
-              onPress={clearAll} 
-              color="#d32f2f" 
+            <Button
+              title={`Borrar todo (${codes.length})`}
+              onPress={clearAll}
+              color="#d32f2f"
             />
           </View>
         </>
@@ -45,9 +48,27 @@ export default function ListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: '#999' },
-  buttonContainer: { padding: 16, borderTopWidth: 1, borderColor: '#e0e0e0' },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+  },
+  buttonContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
+  },
 });

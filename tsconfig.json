@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "app/(tabs)/listScreen.js","app/(tabs)/TabLayout.js", "app/(tabs)/ScanScreen.js", "components/codelist.js", "constants/CodeContext.js", "app/(tabs)/_layout.js"  ]
 }
