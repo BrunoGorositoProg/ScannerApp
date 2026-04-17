@@ -2,14 +2,15 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { CameraView } from 'expo-camera';
 import React, { useCallback, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useCodes } from '../../constants/CodeContext';
+import { getProductByBarcode } from '../../utils/zipDatabaseParser';
+
 
 export default function ScanScreen() {
   const [scanned, setScanned] = useState(false);
   const [lastScannedData, setLastScannedData] = useState(null);
   const lastCodeRef = useRef(null);
-  const { addCode, getDescription, dbLoaded } = useCodes();
-  const navigation = useNavigation(); // 👈 inicializamos navegación
+
+  const navigation = useNavigation();
 
   useFocusEffect(
     useCallback(() => {
@@ -21,43 +22,27 @@ export default function ScanScreen() {
 
   const handleBarCodeScanned = useCallback(
     async ({ data }) => {
-      if (lastCodeRef.current === data) {
-        return;
-      }
+      if (lastCodeRef.current === data) return;
 
       lastCodeRef.current = data;
       setScanned(true);
 
-      const description = getDescription(data);
-      await addCode(data);
+      // 🔥 BUSCAR EN SQLITE
+      const description = await getProductByBarcode(data);
 
       setLastScannedData({
         code: data,
-        description,
+        description: description || '❌ No encontrado',
         timestamp: new Date().toLocaleTimeString(),
       });
     },
-    [addCode, getDescription]
+    []
   );
 
   const handleCloseModal = () => {
     setLastScannedData(null);
     setScanned(false);
   };
-
-  if (!dbLoaded) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.warningBox}>
-          <Text style={styles.warningIcon}>⚠️</Text>
-          <Text style={styles.warningText}>Base de datos no cargada</Text>
-          <Text style={styles.warningSubtext}>
-            Ve a "Cargar BD" y sube un .zip con los códigos
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -70,7 +55,7 @@ export default function ScanScreen() {
       />
 
       <View style={styles.footer}>
-        <Text style={styles.hint}>Apunta al código del remedio</Text>
+        <Text style={styles.hint}>Apunta al código del producto</Text>
       </View>
 
       <Modal
@@ -90,12 +75,16 @@ export default function ScanScreen() {
 
             <View style={styles.dataBox}>
               <Text style={styles.dataLabel}>Descripción:</Text>
-              <Text style={styles.dataDescription}>{lastScannedData?.description}</Text>
+              <Text style={styles.dataDescription}>
+                {lastScannedData?.description}
+              </Text>
             </View>
 
             <View style={styles.dataBox}>
               <Text style={styles.dataLabel}>Hora:</Text>
-              <Text style={styles.dataTime}>{lastScannedData?.timestamp}</Text>
+              <Text style={styles.dataTime}>
+                {lastScannedData?.timestamp}
+              </Text>
             </View>
 
             <View style={styles.buttonGroup}>
@@ -110,82 +99,101 @@ export default function ScanScreen() {
                 style={[styles.button, styles.buttonSecondary]}
                 onPress={() => {
                   handleCloseModal();
-                  navigation.navigate('ListScreen'); // 👈 navega a tu pantalla de lista
+                  navigation.navigate('ListScreen');
                 }}
               >
-                <Text style={styles.buttonTextSecondary}>Ir a mis códigos</Text>
+                <Text style={styles.buttonTextSecondary}>
+                  Ir a mis códigos
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
     </View>
+    
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
+
   footer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     padding: 16,
     alignItems: 'center',
   },
-  hint: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  warningBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff3cd',
-  },
-  warningIcon: { fontSize: 48, marginBottom: 16 },
-  warningText: { fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 8 },
-  warningSubtext: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+
+  hint: { color: '#fff', fontSize: 14 },
+
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
+
   modalContent: {
     backgroundColor: '#fff',
+    padding: 20,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 24,
-    paddingBottom: 32,
   },
+
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
+
   dataBox: {
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderColor: '#e0e0e0',
+    marginBottom: 10,
   },
+
   dataLabel: {
     fontSize: 12,
     color: '#999',
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
+
   dataCode: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0a7ea4',
-    fontFamily: 'Courier New',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  dataDescription: { fontSize: 16, color: '#333', lineHeight: 22 },
-  dataTime: { fontSize: 13, color: '#999' },
-  buttonGroup: { marginTop: 24, gap: 12 },
-  button: { paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  buttonPrimary: { backgroundColor: '#0a7ea4' },
-  buttonSecondary: { backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#e0e0e0' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  buttonTextSecondary: { color: '#333', fontSize: 16, fontWeight: '600' },
+
+  dataDescription: {
+    fontSize: 14,
+  },
+
+  dataTime: {
+    fontSize: 12,
+    color: '#666',
+  },
+
+  buttonGroup: {
+    marginTop: 20,
+  },
+
+  button: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  buttonPrimary: {
+    backgroundColor: '#0a7ea4',
+  },
+
+  buttonSecondary: {
+    backgroundColor: '#eee',
+  },
+
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+  buttonTextSecondary: {
+    color: '#333',
+    fontWeight: 'bold',
+  },
 });

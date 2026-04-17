@@ -1,86 +1,87 @@
 import { File } from 'expo-file-system';
+import * as SQLite from 'expo-sqlite';
 import JSZip from 'jszip';
 
-/**
- * ✅ PARSEAR TXT
- */
-const parseTxtContent = (txtContent) => {
-  const database = {};
+const db = SQLite.openDatabaseSync('products.db');
 
-  const lines = txtContent
-    .replace(/\r/g, '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+export const initDB = () => {
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS products (
+      internal_code TEXT PRIMARY KEY,
+      description TEXT
+    );
 
-  lines.forEach((line) => {
-    const match = line.match(/^(\d+)(.+)$/);
-
-    if (match) {
-      const code = match[1].trim();
-      const description = match[2].trim();
-      database[code] = description;
-    }
-  });
-
-  return database;
+    CREATE TABLE IF NOT EXISTS barcodes (
+      barcode TEXT PRIMARY KEY,
+      internal_code TEXT
+    );
+  `);
 };
 
-/**
- * ✅ EXTRAER ZIP
- */
-export const extractZipDatabaseJSZip = async (zipPath) => {
-  try {
-    console.log('📦 Procesando ZIP...');
+export const insertProduct = (code, description) => {
+  db.runSync(
+    'INSERT OR REPLACE INTO products (internal_code, description) VALUES (?, ?)',
+    [code, description]
+  );
+};
 
-    const file = new File(zipPath);
-    const arrayBuffer = await file.arrayBuffer();
+export const insertBarcode = (barcode, internalCode) => {
+  db.runSync(
+    'INSERT OR REPLACE INTO barcodes (barcode, internal_code) VALUES (?, ?)',
+    [barcode, internalCode]
+  );
+};
 
-    const zip = await JSZip.loadAsync(arrayBuffer);
+export const getProductByBarcode = async (barcode) => {
+  const result = db.getFirstSync(
+    `SELECT p.description 
+     FROM barcodes b
+     JOIN products p ON p.internal_code = b.internal_code
+     WHERE b.barcode = ?`,
+    [barcode]
+  );
 
-    let database = {};
+  return result?.description || null;
+};
 
-    for (const filename in zip.files) {
-      const entry = zip.files[filename];
+export const extractZipToSQLite = async (zipPath) => {
+  const file = new File(zipPath);
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
 
-      if (!entry.dir && filename.toLowerCase().endsWith('.txt')) {
-        console.log('📄 Procesando:', filename);
+  for (const filename in zip.files) {
+    const entry = zip.files[filename];
 
-        const content = await entry.async('text');
-        const parsed = parseTxtContent(content); // 👈 ahora sí existe
+    if (entry.dir) continue;
 
-        database = { ...database, ...parsed };
+    if (
+      filename.toLowerCase().endsWith('.txt') ||
+      filename.toLowerCase().endsWith('.dat')
+    ) {
+      const content = await entry.async('text');
+
+      const lines = content
+        .replace(/\r/g, '')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+
+      for (const line of lines) {
+        // RELACIONES: "77994250000358 00001"
+        if (line.includes(' ')) {
+          const [barcode, internalCode] = line.split(/\s+/);
+          insertBarcode(barcode, internalCode);
+        } 
+        // PRODUCTOS: "00001Ibuprofeno 600mg"
+        else {
+          const match = line.match(/^(\d+)(.+)$/);
+          if (match) {
+            const code = match[1];
+            const description = match[2];
+            insertProduct(code, description);
+          }
+        }
       }
     }
-
-    if (Object.keys(database).length === 0) {
-      throw new Error('ZIP sin archivos .txt válidos');
-    }
-
-    console.log('✅ Total:', Object.keys(database).length);
-
-    return database;
-  } catch (error) {
-    console.error('❌ Error ZIP:', error);
-    throw new Error(`No se pudo procesar el ZIP: ${error.message}`);
   }
-};
-/**
- * Base de datos mock (para testing)
- */
-export const createMockDatabase = () => {
-  return {
-    '00001': 'Limpieza de prótesis dentales',
-    '00002': 'Ibuprofeno 600mg',
-    '00003': 'Paracetamol 500mg',
-    '00004': 'Cepillo de dientes suave',
-    '00005': 'Pasta dental blanqueadora',
-    '00006': 'Enjuague bucal antiséptico',
-    '00007': 'Desinfectante de manos',
-    '00008': 'Alcohol al 70%',
-    '00009': 'Amoxicilina 500mg',
-    '00010': 'Azitromicina 250mg',
-    '77948588': 'Tableta de chicles',
-    '7790040139930': 'Galletitas',
-  };
 };
