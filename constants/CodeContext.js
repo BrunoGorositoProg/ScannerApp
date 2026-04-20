@@ -1,129 +1,97 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import {
+  clearScannedCodes,
+  deleteScannedCode,
+  getProductByBarcode,
+  getScannedCodes,
+  insertScannedCode,
+} from '../utils/zipDatabaseParser'; // 👈 ajustá ruta si hace falta
 
 const CodesContext = createContext(undefined);
 
 export function CodesProvider({ children }) {
   const [codes, setCodes] = useState([]);
-  const [descriptions, setDescriptions] = useState({}); // { code: "description" }
   const [loading, setLoading] = useState(true);
-  const [dbLoaded, setDbLoaded] = useState(false);
 
   useEffect(() => {
-    loadCodes();
-    loadDatabase();
+    refreshCodes();
   }, []);
 
-  // Carga códigos escaneados
-  const loadCodes = async () => {
+  // ------------------ LOAD ------------------
+
+  const refreshCodes = async () => {
     try {
-      const saved = await AsyncStorage.getItem('remedy_codes');
-      if (saved) {
-        const parsedCodes = JSON.parse(saved);
-        setCodes(Array.isArray(parsedCodes) ? parsedCodes : []);
-        console.log('✓ Códigos cargados:', parsedCodes);
-      }
+      setLoading(true);
+
+      const data = getScannedCodes();
+
+      const formatted = data.map(item => ({
+        id: item.id,
+        barcode: item.barcode,
+      }));
+
+      setCodes(formatted);
+
+      console.log('📋 Códigos cargados:', formatted.length);
     } catch (error) {
-      console.error('Error loading codes:', error);
+      console.error('❌ Error loading codes:', error);
       setCodes([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Carga base de datos de descripciones desde .zip
-  const loadDatabase = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('remedy_database');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setDescriptions(parsed);
-        console.log('✓ Base de datos cargada:', Object.keys(parsed).length, 'registros');
-        setDbLoaded(true);
-      }
-    } catch (error) {
-      console.error('Error loading database:', error);
-      setDbLoaded(false);
-    }
-  };
+  // ------------------ ADD ------------------
 
-  // Guardar base de datos (desde .zip parseado)
-  const saveDatabase = async (dbObject) => {
+  const addCode = async (barcode) => {
     try {
-      await AsyncStorage.setItem('remedy_database', JSON.stringify(dbObject));
-      setDescriptions(dbObject);
-      setDbLoaded(true);
-      console.log('✓ Base de datos guardada:', Object.keys(dbObject).length, 'registros');
-    } catch (error) {
-      console.error('Error saving database:', error);
-    }
-  };
+      if (!barcode || barcode.trim() === '') return;
 
-  // Obtener descripción de un código
-  const getDescription = (code) => {
-    return descriptions[code] || 'Sin descripción';
-  };
-
-  // Agregar código escaneado
-  const addCode = async (code) => {
-    try {
-      if (!code || code.trim() === '') {
-        console.log('⚠️ Código vacío, ignorado');
+      const exists = codes.some(c => c.barcode === barcode);
+      if (exists) {
+        console.log('⚠️ Código duplicado:', barcode);
         return;
       }
 
-      const trimmedCode = code.trim();
+      insertScannedCode(barcode);
 
-      if (codes.includes(trimmedCode)) {
-        console.log('⚠️ Código duplicado, ignorado:', trimmedCode);
-        return;
-      }
-
-      const newCodes = [...codes, trimmedCode];
-      setCodes(newCodes);
-      await AsyncStorage.setItem('remedy_codes', JSON.stringify(newCodes));
-      console.log('✓ Código guardado:', trimmedCode);
+      await refreshCodes();
     } catch (error) {
       console.error('❌ Error adding code:', error);
     }
   };
 
-  // Eliminar código
-  const deleteCode = async (index) => {
-    try {
-      if (index < 0 || index >= codes.length) {
-        console.error('❌ Índice inválido:', index);
-        return;
-      }
+  // ------------------ DELETE ------------------
 
-      const deletedCode = codes[index];
-      const newCodes = codes.filter((_, i) => i !== index);
-      setCodes(newCodes);
-      await AsyncStorage.setItem('remedy_codes', JSON.stringify(newCodes));
-      console.log('🗑️ Código eliminado:', deletedCode);
+  const deleteCode = async (id) => {
+    try {
+      deleteScannedCode(id);
+      await refreshCodes();
     } catch (error) {
       console.error('❌ Error deleting code:', error);
     }
   };
 
-  // Borrar todo
+  // ------------------ CLEAR ------------------
+
   const clearAll = async () => {
     try {
-      setCodes([]);
-      await AsyncStorage.removeItem('remedy_codes');
-      console.log('🗑️ Todos los códigos eliminados');
+      clearScannedCodes();
+      await refreshCodes();
     } catch (error) {
       console.error('❌ Error clearing codes:', error);
     }
   };
 
-  // Refrescar códigos
-  const refreshCodes = async () => {
+  // ------------------ DESCRIPTION ------------------
+
+  const getDescription = (barcode) => {
     try {
-      await loadCodes();
-      console.log('🔄 Códigos refrescados');
+      return getProductByBarcode(barcode) || 'Sin descripción';
     } catch (error) {
-      console.error('❌ Error refreshing codes:', error);
+      console.error('❌ Error getting description:', error);
+      return 'Error';
     }
   };
 
@@ -132,15 +100,11 @@ export function CodesProvider({ children }) {
       value={{
         codes,
         loading,
-        descriptions,
-        dbLoaded,
         addCode,
         deleteCode,
         clearAll,
         refreshCodes,
         getDescription,
-        saveDatabase,
-        loadDatabase,
       }}
     >
       {children}

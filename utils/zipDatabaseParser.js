@@ -4,19 +4,64 @@ import JSZip from 'jszip';
 
 const db = SQLite.openDatabaseSync('products.db');
 
-export const initDB = () => {
-  db.execSync(`
-    CREATE TABLE IF NOT EXISTS products (
-      internal_code TEXT PRIMARY KEY,
-      description TEXT
-    );
+// ------------------ INIT ------------------
 
-    CREATE TABLE IF NOT EXISTS barcodes (
-      barcode TEXT PRIMARY KEY,
-      internal_code TEXT
-    );
-  `);
+export const initDB = () => {
+  // Obtener versión actual
+  const versionResult = db.getFirstSync('PRAGMA user_version');
+  const currentVersion = versionResult?.user_version || 0;
+
+  console.log('📦 DB version actual:', currentVersion);
+
+  // ---------------- VERSION 0 → 1 ----------------
+  if (currentVersion < 1) {
+    console.log('🚀 Creando tablas iniciales...');
+
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS products (
+        internal_code TEXT PRIMARY KEY,
+        description TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS barcodes (
+        barcode TEXT PRIMARY KEY,
+        internal_code TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS scanned_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        barcode TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    db.execSync(`PRAGMA user_version = 1`);
+  }
+
+  // ---------------- VERSION 1 → 2 (AGREGAR UNIQUE) ----------------
+  if (currentVersion < 2) {
+    console.log('🔄 Migrando tabla scanned_codes (UNIQUE)...');
+
+    db.execSync(`
+      CREATE TABLE scanned_codes_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        barcode TEXT UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT OR IGNORE INTO scanned_codes_new (barcode, created_at)
+      SELECT barcode, created_at FROM scanned_codes;
+
+      DROP TABLE scanned_codes;
+
+      ALTER TABLE scanned_codes_new RENAME TO scanned_codes;
+    `);
+
+    db.execSync(`PRAGMA user_version = 2`);
+  }
 };
+
+// ------------------ INSERTS ------------------
 
 export const insertProduct = (code, description) => {
   db.runSync(
@@ -32,7 +77,16 @@ export const insertBarcode = (barcode, internalCode) => {
   );
 };
 
-export const getProductByBarcode = async (barcode) => {
+export const insertScannedCode = (barcode) => {
+  db.runSync(
+    'INSERT OR IGNORE INTO scanned_codes (barcode) VALUES (?)',
+    [barcode]
+  );
+};
+
+// ------------------ QUERIES ------------------
+
+export const getProductByBarcode = (barcode) => {
   const result = db.getFirstSync(
     `SELECT p.description 
      FROM barcodes b
@@ -43,6 +97,25 @@ export const getProductByBarcode = async (barcode) => {
 
   return result?.description || null;
 };
+
+export const getScannedCodes = () => {
+  return db.getAllSync(
+    'SELECT * FROM scanned_codes ORDER BY created_at DESC'
+  );
+};
+
+export const deleteScannedCode = (id) => {
+  db.runSync(
+    'DELETE FROM scanned_codes WHERE id = ?',
+    [id]
+  );
+};
+
+export const clearScannedCodes = () => {
+  db.runSync('DELETE FROM scanned_codes');
+};
+
+// ------------------ ZIP IMPORT ------------------
 
 export const extractZipToSQLite = async (zipPath) => {
   const file = new File(zipPath);
@@ -71,9 +144,7 @@ export const extractZipToSQLite = async (zipPath) => {
         if (line.includes(' ')) {
           const [barcode, internalCode] = line.split(/\s+/);
           insertBarcode(barcode, internalCode);
-        } 
-        // PRODUCTOS: "00001Ibuprofeno 600mg"
-        else {
+        } else {
           const match = line.match(/^(\d+)(.+)$/);
           if (match) {
             const code = match[1];

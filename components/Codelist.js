@@ -4,9 +4,11 @@ export default function CodesList({ codes, onDelete, getDescription }) {
   return (
     <FlatList
       data={codes}
-      keyExtractor={(_, i) => i.toString()}
+      keyExtractor={(item) => item.id.toString()} // 👈 ahora usamos ID real
       renderItem={({ item, index }) => {
-        const description = getDescription ? getDescription(item) : 'Sin descripción';
+        const description = getDescription
+          ? getDescription(item.barcode)
+          : 'Sin descripción';
 
         return (
           <View style={styles.item}>
@@ -14,11 +16,15 @@ export default function CodesList({ codes, onDelete, getDescription }) {
               <View style={styles.codeHeader}>
                 <Text style={styles.label}>Código {index + 1}</Text>
               </View>
-              <Text style={styles.code}>{item}</Text>
+
+              {/* 👇 CAMBIO CLAVE */}
+              <Text style={styles.code}>{item.barcode}</Text>
+
               <Text style={styles.description}>{description}</Text>
             </View>
+
             <TouchableOpacity
-              onPress={() => onDelete(index)}
+              onPress={() => onDelete(item.id)} // 👈 ahora borramos por ID
               style={styles.deleteBtn}
             >
               <Text style={styles.deleteIcon}>✕</Text>

@@ -2,8 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { CameraView } from 'expo-camera';
 import React, { useCallback, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { getProductByBarcode } from '../../utils/zipDatabaseParser';
-
+import { useCodes } from '../../constants/CodeContext';
 
 export default function ScanScreen() {
   const [scanned, setScanned] = useState(false);
@@ -11,6 +10,7 @@ export default function ScanScreen() {
   const lastCodeRef = useRef(null);
 
   const navigation = useNavigation();
+  const { addCode, getDescription } = useCodes();
 
   useFocusEffect(
     useCallback(() => {
@@ -27,8 +27,11 @@ export default function ScanScreen() {
       lastCodeRef.current = data;
       setScanned(true);
 
-      // 🔥 BUSCAR EN SQLITE
-      const description = await getProductByBarcode(data);
+      // 👉 Guardar en SQLite
+      await addCode(data);
+
+      // 👉 Obtener descripción
+      const description = getDescription(data);
 
       setLastScannedData({
         code: data,
@@ -111,12 +114,19 @@ export default function ScanScreen() {
         </View>
       </Modal>
     </View>
-    
   );
 }
+
+// 👇 🔥 ESTO ES LO QUE TE FALTABA
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+
+  camera: {
+    flex: 1,
+  },
 
   footer: {
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -124,7 +134,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  hint: { color: '#fff', fontSize: 14 },
+  hint: {
+    color: '#fff',
+    fontSize: 14,
+  },
 
   modalOverlay: {
     flex: 1,
