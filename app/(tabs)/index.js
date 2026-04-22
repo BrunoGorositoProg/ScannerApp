@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -18,12 +18,20 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+      <Image
+    source={require('../../assets/images/logo_Cooperala.png')}
+    style={styles.logo}
+    resizeMode="contain"
+  />
+  </View>
       <Text style={styles.title}>Inicio</Text>
 
       <View style={styles.grid}>
         <Card title="Lista" icon="list" route="../(tabs)/ListScreen" />
         <Card title="Escanear" icon="scan" route="../(tabs)/ScanScreen" />
         <Card title="Subir DB" icon="cloud-upload" route="../(tabs)/UploadDatabaseScreen" />
+        <Card title="Cooperala" icon="business" route="../(tabs)/Cooperala" />
       </View>
     </View>
   );
@@ -37,6 +45,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+header: {
+  position: 'absolute',
+  top: 40,     // ajustá según notch / status bar
+  left: 16,
+  zIndex: 10,
+},
+logo: {
+  width: 160,
+  height: 80,
+},
   title: {
     fontSize: 30,
     fontWeight: 'bold',

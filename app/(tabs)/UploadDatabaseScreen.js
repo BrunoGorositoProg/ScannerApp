@@ -1,15 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
-
+import { ActivityIndicator, Alert, Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { extractZipToSQLite, initDB } from '../../utils/zipDatabaseParser';
 export default function UploadDatabaseScreen() {
   const [loading, setLoading] = useState(false);
@@ -72,6 +64,7 @@ export default function UploadDatabaseScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Cargar Base de Datos</Text>
@@ -141,6 +134,7 @@ export default function UploadDatabaseScreen() {
         </Text>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -149,9 +143,11 @@ export default function UploadDatabaseScreen() {
  */
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
     padding: 16,
+  },
+  safe: {
+  flex: 1,
+  backgroundColor: '#fff',
   },
   header: {
     marginBottom: 24,

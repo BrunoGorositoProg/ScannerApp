@@ -18,7 +18,7 @@ export default function ListScreen() {
   if (loading) return <Text style={{ padding: 16 }}>Cargando...</Text>;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {codes.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>📋 Sin códigos guardados</Text>
@@ -49,8 +49,11 @@ export default function ListScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
+    padding: 16,
+  },
+  safe: {
+  flex: 1,
+  backgroundColor: '#fff',
   },
   empty: {
     flex: 1,
