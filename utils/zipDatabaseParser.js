@@ -7,7 +7,6 @@ const db = SQLite.openDatabaseSync('products.db');
 // ------------------ INIT ------------------
 
 export const initDB = () => {
-  // Obtener versión actual
   const versionResult = db.getFirstSync('PRAGMA user_version');
   const currentVersion = versionResult?.user_version || 0;
 

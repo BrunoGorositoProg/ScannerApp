@@ -9,16 +9,11 @@ export default function UploadDatabaseScreen() {
   const [fileInfo, setFileInfo] = useState(null);
   const [dbLoaded, setDbLoaded] = useState(false);
 
-  /**
-   * 🔥 Inicializar SQLite (MUY IMPORTANTE)
-   */
   useEffect(() => {
     initDB();
   }, []);
 
-  /**
-   * 📦 Seleccionar ZIP
-   */
+  /**  Seleccionar ZIP */
   const handlePickZip = async () => {
     try {
       setLoading(true);
@@ -41,7 +36,7 @@ export default function UploadDatabaseScreen() {
 
       setStatus('Procesando ZIP...');
 
-      // 🔥 IMPORTANTE: esto ahora guarda en SQLite
+  
       await extractZipToSQLite(zipPath);
 
       setStatus('✅ Base de datos cargada correctamente');
@@ -138,9 +133,7 @@ export default function UploadDatabaseScreen() {
   );
 }
 
-/**
- * 🎨 estilos (igual que los tuyos)
- */
+
 const styles = StyleSheet.create({
   container: {
     padding: 16,

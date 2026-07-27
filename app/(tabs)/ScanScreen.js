@@ -117,7 +117,7 @@ export default function ScanScreen() {
   );
 }
 
-// 👇 🔥 ESTO ES LO QUE TE FALTABA
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

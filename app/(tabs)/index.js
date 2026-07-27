@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   },
 header: {
   position: 'absolute',
-  top: 40,     // ajustá según notch / status bar
+  top: 40,     
   left: 16,
   zIndex: 10,
 },

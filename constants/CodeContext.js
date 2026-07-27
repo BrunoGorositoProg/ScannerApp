@@ -6,7 +6,7 @@ import {
   getProductByBarcode,
   getScannedCodes,
   insertScannedCode,
-} from '../utils/zipDatabaseParser'; // 👈 ajustá ruta si hace falta
+} from '../utils/zipDatabaseParser';
 
 const CodesContext = createContext(undefined);
 
